@@ -1,0 +1,50 @@
+# Gradle
+.gradle/
+.kotlin/
+build/
+**/build/
+
+# Local Android configuration
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Signing and secrets
+*.jks
+*.keystore
+keystore.properties
+!keystore.properties.example
+.env
+.env.*
+!.env.example
+*.p12
+*.pfx
+*.pem
+service-account*.json
+google-credentials*.json
+seismic-sunbeam-*.json
+
+# Runtime data and diagnostic files (never part of the public source)
+*.log
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.hprof
+*.apk
+*.aab
+*.apks
+*.zip
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Native build output
+.cxx/
+captures/

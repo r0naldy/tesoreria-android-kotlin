@@ -1,0 +1,7 @@
+ALTER TABLE pending_operations
+ADD COLUMN owner_identity TEXT NOT NULL DEFAULT '';
+
+DROP INDEX pending_operations_ready;
+
+CREATE INDEX pending_operations_ready
+ON pending_operations(owner_identity, next_attempt_at, created_at);

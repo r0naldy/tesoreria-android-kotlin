@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <files-path
+        name="pending_receipt_images"
+        path="pending-receipts/" />
+    <!-- Kept only so an upgrade can still finish uploads queued by an older build. -->
+    <cache-path
+        name="receipt_images"
+        path="receipts/" />
+    <cache-path
+        name="shared_exports"
+        path="exports/" />
+    <files-path
+        name="shared_documents"
+        path="shared-documents/" />
+</paths>

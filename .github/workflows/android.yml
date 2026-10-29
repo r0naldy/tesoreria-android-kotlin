@@ -1,0 +1,39 @@
+name: Android quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify with JDK 17 and Android SDK 34
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s  %s\n' \
+            '498495120a03b9a6ab5d155f5de3c8f0d986a449153702fb80fc80e134484f17' \
+            'gradle/wrapper/gradle-wrapper.jar' | sha256sum --check -
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          java -version
+          test -d "$ANDROID_HOME/platforms/android-34"
+          bash ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug \
+            --no-daemon --max-workers=2 \
+            -PAPI_BASE_URL=https://api.example.invalid

@@ -1,0 +1,241 @@
+CREATE TABLE app_metadata (
+    key TEXT NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+CREATE TABLE programas (
+    id INTEGER NOT NULL PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    estado TEXT NOT NULL,
+    fecha_creacion TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE servicios (
+    id INTEGER NOT NULL PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    precio_centimos INTEGER NOT NULL,
+    estado TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE comprobantes (
+    local_id TEXT NOT NULL PRIMARY KEY,
+    remote_id INTEGER UNIQUE,
+    proveedor TEXT,
+    ruc TEXT,
+    tipo_documento TEXT,
+    numero_comprobante TEXT,
+    fecha_emision TEXT,
+    hora_emision TEXT,
+    moneda TEXT NOT NULL DEFAULT 'PEN',
+    subtotal_centimos INTEGER,
+    igv_centimos INTEGER,
+    total_centimos INTEGER NOT NULL,
+    categoria TEXT,
+    concepto TEXT,
+    metodo_pago TEXT,
+    confianza INTEGER NOT NULL DEFAULT 0,
+    es_duplicado_probable INTEGER NOT NULL DEFAULT 0,
+    observaciones TEXT,
+    imagen_uri TEXT,
+    imagen_url TEXT,
+    fecha_registro TEXT,
+    usuario TEXT NOT NULL DEFAULT '',
+    estado TEXT NOT NULL DEFAULT 'Pendiente',
+    sync_status TEXT NOT NULL DEFAULT 'PENDING',
+    sync_error TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE productos (
+    comprobante_local_id TEXT NOT NULL,
+    orden INTEGER NOT NULL,
+    descripcion TEXT,
+    cantidad REAL,
+    precio_unitario_centimos INTEGER,
+    importe_centimos INTEGER,
+    PRIMARY KEY (comprobante_local_id, orden),
+    FOREIGN KEY (comprobante_local_id) REFERENCES comprobantes(local_id) ON DELETE CASCADE
+);
+
+CREATE TABLE pending_operations (
+    id TEXT NOT NULL PRIMARY KEY,
+    owner_identity TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_local_id TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    created_at INTEGER NOT NULL,
+    next_attempt_at INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX pending_operations_ready
+ON pending_operations(owner_identity, next_attempt_at, created_at);
+
+CREATE INDEX pending_operations_entity
+ON pending_operations(entity_type, entity_local_id);
+
+selectMetadata:
+SELECT value
+FROM app_metadata
+WHERE key = ?;
+
+upsertMetadata:
+INSERT OR REPLACE INTO app_metadata(key, value)
+VALUES (?, ?);
+
+selectAllProgramas:
+SELECT * FROM programas ORDER BY nombre COLLATE NOCASE;
+
+selectActiveProgramas:
+SELECT * FROM programas WHERE estado = 'Activo' ORDER BY nombre COLLATE NOCASE;
+
+selectProgramaById:
+SELECT * FROM programas WHERE id = ?;
+
+upsertPrograma:
+INSERT OR REPLACE INTO programas(id, nombre, estado, fecha_creacion, updated_at)
+VALUES (?, ?, ?, ?, ?);
+
+deleteProgramaById:
+DELETE FROM programas WHERE id = ?;
+
+selectAllServicios:
+SELECT * FROM servicios ORDER BY id;
+
+selectActiveServicios:
+SELECT * FROM servicios WHERE estado = 'Activo' ORDER BY id;
+
+selectServicioById:
+SELECT * FROM servicios WHERE id = ?;
+
+upsertServicio:
+INSERT OR REPLACE INTO servicios(id, nombre, precio_centimos, estado, updated_at)
+VALUES (?, ?, ?, ?, ?);
+
+deleteServicioById:
+DELETE FROM servicios WHERE id = ?;
+
+selectAllComprobantes:
+SELECT * FROM comprobantes ORDER BY COALESCE(remote_id, 0) DESC, created_at DESC;
+
+selectComprobanteSummariesForOwner:
+SELECT local_id, remote_id, proveedor, ruc, tipo_documento, numero_comprobante,
+       fecha_emision, moneda, total_centimos, categoria, concepto, confianza,
+       es_duplicado_probable, imagen_uri, imagen_url, fecha_registro, usuario,
+       estado, sync_status, sync_error
+FROM comprobantes
+WHERE remote_id IS NOT NULL OR EXISTS (
+    SELECT 1 FROM pending_operations AS pending
+    WHERE pending.entity_type = 'comprobante'
+      AND pending.entity_local_id = comprobantes.local_id
+      AND pending.owner_identity = :owner_identity
+)
+ORDER BY COALESCE(remote_id, 0) DESC, created_at DESC;
+
+selectComprobanteByLocalId:
+SELECT * FROM comprobantes WHERE local_id = ?;
+
+selectComprobanteByRemoteId:
+SELECT * FROM comprobantes WHERE remote_id = ?;
+
+upsertComprobante:
+INSERT OR REPLACE INTO comprobantes(
+    local_id, remote_id, proveedor, ruc, tipo_documento, numero_comprobante,
+    fecha_emision, hora_emision, moneda, subtotal_centimos, igv_centimos,
+    total_centimos, categoria, concepto, metodo_pago, confianza,
+    es_duplicado_probable, observaciones, imagen_uri, imagen_url,
+    fecha_registro, usuario, estado, sync_status, sync_error, created_at, updated_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteProductosForComprobante:
+DELETE FROM productos WHERE comprobante_local_id = ?;
+
+insertProducto:
+INSERT OR REPLACE INTO productos(
+    comprobante_local_id, orden, descripcion, cantidad, precio_unitario_centimos, importe_centimos
+)
+VALUES (?, ?, ?, ?, ?, ?);
+
+selectProductosForComprobante:
+SELECT * FROM productos WHERE comprobante_local_id = ? ORDER BY orden;
+
+insertPendingOperation:
+INSERT INTO pending_operations(
+    id, owner_identity, entity_type, entity_local_id, operation, payload_json,
+    attempts, last_error, created_at, next_attempt_at
+)
+VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, 0);
+
+selectReadyPendingOperations:
+SELECT * FROM pending_operations
+WHERE owner_identity = :owner_identity AND next_attempt_at <= :now
+ORDER BY created_at
+LIMIT :limit;
+
+countPendingOperations:
+SELECT COUNT(*) FROM pending_operations
+WHERE owner_identity = ?;
+
+selectPendingEntityIds:
+SELECT DISTINCT entity_local_id
+FROM pending_operations
+WHERE owner_identity = ? AND entity_type = ?;
+
+selectAllPendingEntityIds:
+SELECT DISTINCT entity_local_id FROM pending_operations WHERE entity_type = ?;
+
+selectPendingForType:
+SELECT * FROM pending_operations WHERE owner_identity = ? AND entity_type = ? ORDER BY created_at;
+
+selectPendingById:
+SELECT * FROM pending_operations WHERE id = ? AND owner_identity = ?;
+
+selectPendingOwnersForEntity:
+SELECT DISTINCT owner_identity FROM pending_operations WHERE entity_type = ? AND entity_local_id = ?;
+
+findPendingOperation:
+SELECT * FROM pending_operations
+WHERE owner_identity = ? AND entity_type = ? AND entity_local_id = ? AND operation = ?
+LIMIT 1;
+
+updatePendingPayload:
+UPDATE pending_operations SET payload_json = ?
+WHERE id = ? AND owner_identity = ?;
+
+markPendingInFlight:
+UPDATE pending_operations
+SET last_error = ?, next_attempt_at = 9223372036854775807
+WHERE id = ? AND owner_identity = ?;
+
+markPendingFailure:
+UPDATE pending_operations
+SET attempts = attempts + 1, last_error = ?, next_attempt_at = ?
+WHERE id = ? AND owner_identity = ?;
+
+markPendingRequiresReview:
+UPDATE pending_operations
+SET attempts = attempts + 1, last_error = ?, next_attempt_at = 9223372036854775807
+WHERE id = ? AND owner_identity = ?;
+
+deletePendingOperation:
+DELETE FROM pending_operations
+WHERE id = ? AND owner_identity = ?;
+
+deletePendingForEntity:
+DELETE FROM pending_operations
+WHERE owner_identity = ? AND entity_type = ? AND entity_local_id = ?;
+
+deletePendingForEntityAndOperation:
+DELETE FROM pending_operations
+WHERE owner_identity = ? AND entity_type = ? AND entity_local_id = ? AND operation = ?;
+
+markComprobanteSyncError:
+UPDATE comprobantes
+SET sync_status = 'ERROR', sync_error = ?, updated_at = ?
+WHERE local_id = ?;
