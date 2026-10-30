@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "TesoreriaKotlin"
-include(":app")
+include(":app", ":domain", ":data", ":presentation")

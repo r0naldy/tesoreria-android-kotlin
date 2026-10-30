@@ -1,11 +1,12 @@
-# Tesorería móvil — Android Kotlin
+# Tesorería — Kotlin Multiplatform y Clean Architecture
 
-Cliente Android nativo para la gestión institucional de tesorería, con Kotlin,
-Jetpack Compose Material 3, arquitectura por capas y MVVM.
+Aplicación Android para la gestión institucional de tesorería, con Kotlin
+Multiplatform, Compose Multiplatform Material 3, Clean Architecture y MVVM.
 
 Este repositorio contiene **solo la aplicación Android**. La API es un servicio
 externo: aquí no se incluyen su código, base de datos, infraestructura ni
-credenciales. No es un proyecto KMP y no incluye iOS.
+credenciales. Los cuatro módulos son KMP; Android es la única aplicación
+distribuible. El dominio también se prueba en JVM. No se incluye una app iOS.
 
 ## Alcance y estado
 
@@ -26,37 +27,31 @@ Publicar el código fuente no equivale a publicar la app en una tienda.
 
 ## Arquitectura y organización
 
-La interfaz observa estados de los ViewModels; los repositorios coordinan los
-contratos REST, la persistencia local y las reglas de sincronización. La inyección
-de dependencias permite sustituir los repositorios en las pruebas.
+El proyecto separa cuatro módulos Gradle con dependencias hacia el dominio:
 
 ```text
-app/src/
-├── main/java/pe/edu/hzg/tesoreria/
-│   ├── domain/          modelos, contratos y validaciones
-│   ├── data/            Ktor, DTO, persistencia, sesión y sincronización
-│   ├── features/
-│   │   ├── treasury/    caja, tickets y reportes
-│   │   └── academic/    estudiantes, registros, períodos y comparativa
-│   ├── admin/           usuarios, configuración y auditoría
-│   ├── presentation/    ViewModels y estados de los módulos principales
-│   ├── ui/              navegación, pantallas y tema Material 3
-│   ├── security/        validación de enlaces e imágenes remotas
-│   ├── camera/          captura mediante FileProvider
-│   └── di/              configuración de dependencias
-├── main/sqldelight/     esquema, consultas y migraciones locales
-├── test/                pruebas JVM de contratos, reglas y repositorios
-└── androidTest/         recorridos de interfaz y permisos con datos de prueba
+domain/src/commonMain/          entidades, comandos, reglas, casos de uso y contratos
+data/src/commonMain/            DTO, mapeos, API, repositorios y SQLDelight
+data/src/androidMain/           Keystore, ContentResolver y WorkManager
+presentation/src/commonMain/    pantallas, navegación, tema y ViewModels
+presentation/src/androidMain/   cámara, imágenes, PDF, impresión y compartir
+app/src/androidMain/            Activity, Application, Koin, SSO y recursos
 ```
 
-Tecnologías principales: Kotlin 2.1, Java 17, Compose, Ktor, SQLDelight, Koin,
-WorkManager, Coroutines, Flow y kotlinx.serialization. Las versiones se
-centralizan en `gradle/libs.versions.toml`. El wrapper usa Gradle 8.9 con
-verificación SHA-256 y el proyecto usa AGP 8.7.3.
+La presentación y los datos dependen de `domain`; la presentación no depende de
+`data`. Los DTO no salen de la capa de datos. Las integraciones nativas se
+resuelven mediante contratos y adaptadores `expect/actual`. Consulte
+[la arquitectura y los criterios de verificación](ARCHITECTURE.md).
 
-El diseño toma la paleta azul marino y verde petróleo de ASISTO, con pesos
-tipográficos normales/medios y modo oscuro. Los catálogos emplean listas/grillas
-lazy, sin imágenes decorativas pesadas ni animaciones continuas.
+La ubicación del repositorio y su referencia académica se encuentran en
+[Código fuente del proyecto](docs/CODIGO-FUENTE.md).
+
+Versiones: Kotlin 2.1.0, Compose Multiplatform 1.7.3, Java 17, Ktor 3.0.3,
+SQLDelight 2.0.2, Koin 4.0.0, Gradle 8.9 y AGP 8.7.3. Las versiones se centralizan
+en `gradle/libs.versions.toml`. El wrapper conserva su verificación SHA-256.
+
+El diseño conserva la paleta azul marino y verde petróleo de ASISTO, el modo
+oscuro y las pantallas existentes. Android sigue siendo la plataforma de entrega.
 
 ## API externa y compatibilidad
 
@@ -137,8 +132,8 @@ cancelaciones de tareas se propagan sin convertirse en reintentos de envío.
 - Sin registros de contraseñas, JWT, fotos o cuerpos sensibles en los logs.
 - Release con R8 y reducción de recursos.
 
-Mistral OCR y DeepSeek son servicios utilizados por la API externa, no por el
-APK directamente. No se deben agregar sus claves, secretos JWT, datos reales de
+El procesamiento de comprobantes se realiza en la API externa. No se deben
+agregar claves de proveedores, secretos JWT, datos reales de
 estudiantes, certificados privados ni contraseñas a código, recursos,
 `BuildConfig` o propiedades versionadas. La URL pública de la API no es un
 secreto. `local.properties` y los archivos de firma se mantienen locales.
@@ -157,7 +152,7 @@ sdk.dir=C\:\\Users\\usuario\\AppData\\Local\\Android\\Sdk
 Desde esa misma raíz, en PowerShell:
 
 ```powershell
-.\gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+.\gradlew.bat verifyArchitecture :domain:jvmTest :domain:testDebugUnitTest :data:testDebugUnitTest :presentation:testDebugUnitTest :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 
 # Con un dispositivo o emulador de pruebas conectado
 .\gradlew.bat :app:connectedDebugAndroidTest
@@ -171,10 +166,10 @@ instrumentadas del catálogo utilizan repositorios de prueba y no deben escribir
 en producción. Las pruebas de integración manual deben usar cuentas y datos de
 prueba autorizados.
 
-Validación local del 28 de octubre de 2026: 107 pruebas JVM aprobadas, sin fallos
-ni omisiones; lint sin errores; debug, release minificado y AAB compilados.
-Las advertencias restantes de lint no se han ocultado y se pueden consultar en
-`app/build/reports/lint-results-debug.html`.
+Las pruebas unitarias se distribuyen por módulo. Los reportes están en
+`<módulo>/build/reports/tests/`; lint se consulta en
+`app/build/reports/lint-results-debug.html`. El esquema y las migraciones de la
+base de datos se conservan en `data/src/commonMain/sqldelight`.
 
 El flujo `.github/workflows/android.yml` ejecuta pruebas JVM, lint y compilación
 debug en cada push a `main` y en las solicitudes de cambios. Utiliza una URL de

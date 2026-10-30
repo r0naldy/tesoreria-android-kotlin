@@ -1,4 +1,8 @@
 [versions]
+composeMultiplatform = "1.7.3"
+datetime = "0.6.1"
+multiplatformLifecycle = "2.8.4"
+multiplatformNavigation = "2.8.0-alpha10"
 agp = "8.7.3"
 kotlin = "2.1.0"
 coreKtx = "1.13.1"
@@ -19,6 +23,13 @@ androidxJunit = "1.2.1"
 espresso = "3.6.1"
 
 [libraries]
+datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
+koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
+koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
+multiplatform-lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "multiplatformLifecycle" }
+multiplatform-lifecycle-runtime = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "multiplatformLifecycle" }
+multiplatform-navigation = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "multiplatformNavigation" }
+
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
@@ -59,8 +70,11 @@ androidx-junit = { module = "androidx.test.ext:junit", version.ref = "androidxJu
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
 
 [plugins]
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
+
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
